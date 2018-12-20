@@ -21,6 +21,8 @@ namespace CsgoStatistics
         private long? planterSteamId = null;
         private long? mvpSteamId = null;
 
+        private Dictionary<long, Vector3> positions = new Dictionary<long, Vector3>();
+
         private bool hasStarted = false;
 
         public DemoReader(DemoFile file)
@@ -38,6 +40,7 @@ namespace CsgoStatistics
             parser.BombDefused += Parser_BombDefused;
             parser.BombPlanted += Parser_BombPlanted;
             parser.RoundStart += Parser_RoundStart;
+            parser.TickDone += Parser_TickDone;
             parser.ParseHeader();
 
             DemoService service = DemoService.Unknown;
@@ -55,6 +58,37 @@ namespace CsgoStatistics
                 Service = service
             };
             stats.Demos.Add(demo);
+        }
+
+        private void Parser_TickDone(object sender, TickDoneEventArgs e)
+        {
+            if (!hasStarted)
+                return;
+
+            foreach (var player in parser.Participants)
+            {
+                if (player == null)
+                    continue;
+
+                Vector3 position = new Vector3(player.Position.X, player.Position.Y, player.Position.Z);
+
+                double previousMovement;
+                if (!stats.Movement.TryGetValue(player.SteamID, out previousMovement))
+                {
+                    previousMovement = 0.0;
+                }
+
+                Vector3 previousPosition;
+                if (positions.TryGetValue(player.SteamID, out previousPosition))
+                {
+                    stats.Movement[player.SteamID] = previousMovement + (position - previousPosition).Length();
+                }
+                else
+                {
+                    stats.Movement[player.SteamID] = 0.0;
+                }
+                positions[player.SteamID] = position;
+            }
         }
 
         private void Parser_RoundStart(object sender, RoundStartedEventArgs e)

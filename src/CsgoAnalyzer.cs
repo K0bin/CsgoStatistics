@@ -166,6 +166,7 @@ namespace CsgoStatistics
             demos.Clear();
 
             var players = Enum.GetValues(typeof(Players));
+
             var ferrari = combined
                 .Kills
                 .Where(k =>
@@ -181,22 +182,6 @@ namespace CsgoStatistics
                 .Select(k => Tuple.Create(k.Key, k.Average(s => s.KillerVelocity?.Length() ?? 0)))
                 .OrderBy(tuple => tuple.Item2)
                 .OrderByDescending(t => t.Item2)
-                .ToList();
-
-            var test = combined
-                .Kills
-                .Where(k =>
-                {
-                    for (int i = 0; i < players.Length; i++)
-                    {
-                        if (k.KillerSteamId == (long)players.GetValue(i))
-                            return true;
-                    }
-                    return false;
-                })
-                .GroupBy(k => Tuple.Create(k.DemoId, k.Round, k.KillerSteamId))
-                .Select(g => Tuple.Create(g.Key.Item3, g.Count(k => k.VictimTeam != k.KillerTeam)))
-                .Where(t => t.Item2 > 5)
                 .ToList();
 
             var aces = combined
@@ -250,11 +235,26 @@ namespace CsgoStatistics
                 .OrderByDescending(t => t.Item2)
                 .ToList();
 
+            var movement = combined
+                .Movement
+                .Where(m =>
+                {
+                    for (int i = 0; i < players.Length; i++)
+                    {
+                        if (m.Key == (long)players.GetValue(i))
+                            return true;
+                    }
+                    return false;
+                })
+                .OrderByDescending(t => t.Value)
+                .ToList();
+
+
 
             Console.WriteLine();
             Console.WriteLine("=======================================");
             Console.WriteLine("Ferrari Peeks");
-            ferrari.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2 * 30.48f / 16 / 100 * 3.6f} km/h"));
+            ferrari.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {UnitToKm(f.Item2) * 3.6f} km/h"));
 
             Console.WriteLine();
             Console.WriteLine("=======================================");
@@ -271,7 +271,17 @@ namespace CsgoStatistics
             Console.WriteLine("Defuses");
             defuses.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
 
+            Console.WriteLine();
+            Console.WriteLine("=======================================");
+            Console.WriteLine("Movement");
+            movement.ForEach(m => Console.WriteLine($"{Enum.GetName(typeof(Players), m.Key)}: {UnitToKm(m.Value)}"));
+
             Console.ReadKey();
+        }
+
+        private double UnitToKm(double units)
+        {
+            return units * 30.48f / 16 / 100;
         }
     }
 }
