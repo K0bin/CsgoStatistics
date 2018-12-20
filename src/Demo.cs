@@ -41,5 +41,6 @@ namespace CsgoStatistics
         public string Map;
         public Outcome Outcome;
         public TimeSpan Duration;
+        public ISet<long> Players;
     }
 }

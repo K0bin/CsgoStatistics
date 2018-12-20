@@ -167,6 +167,30 @@ namespace CsgoStatistics
 
             var players = Enum.GetValues(typeof(Players));
 
+            var roundsPlayed = new Dictionary<long, int>();
+
+            combined
+               .Rounds
+               .ForEach(r =>
+            {
+                Demo demo = combined.Demos.First(d => d.Id == r.DemoId);
+                for (int i = 0; i < players.Length; i++)
+                {
+                    long steamId = (long)players.GetValue(i);
+                    if (demo.Players.Contains(steamId)) {
+                        if (roundsPlayed.TryGetValue(steamId, out int roundsPlayedSoFar))
+                        {
+                            roundsPlayed[steamId] = roundsPlayedSoFar + 1;
+                        }
+                        else
+                        {
+                            roundsPlayed[steamId] = 1;
+                        }
+                    }
+
+                }
+            });
+
             var ferrari = combined
                 .Kills
                 .Where(k =>
@@ -249,32 +273,55 @@ namespace CsgoStatistics
                 .OrderByDescending(t => t.Value)
                 .ToList();
 
-
+            var relativeAces = aces.Select(t => Tuple.Create(t.Item1, ((double)t.Item2) / ((double)roundsPlayed[t.Item1 ?? 0]))).ToList();
+            var relativePlants = plants.Select(t => Tuple.Create(t.Item1, ((double)t.Item2) / ((double)roundsPlayed[t.Item1 ?? 0]))).ToList();
+            var relativeDefuses = defuses.Select(t => Tuple.Create(t.Item1, ((double)t.Item2) / ((double)roundsPlayed[t.Item1 ?? 0]))).ToList();
+            var relativeMovement = movement.Select(p => Tuple.Create(p.Key, ((double)p.Value) / ((double)roundsPlayed[p.Key]))).ToList();
 
             Console.WriteLine();
-            Console.WriteLine("=======================================");
+            Console.WriteLine("======================================");
+            Console.WriteLine("Rounds played");
+            foreach (var (steamId, playerRounds) in roundsPlayed)
+            {
+                Console.WriteLine($"{Enum.GetName(typeof(Players), steamId)}: {playerRounds}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("======================================");
             Console.WriteLine("Ferrari Peeks");
             ferrari.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {UnitToKm(f.Item2) * 3.6f} km/h"));
 
             Console.WriteLine();
-            Console.WriteLine("=======================================");
+            Console.WriteLine("======================================");
             Console.WriteLine("Aces");
             aces.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
+            Console.WriteLine("===================");
+            Console.WriteLine("Aces/Round");
+            relativeAces.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
 
             Console.WriteLine();
-            Console.WriteLine("=======================================");
+            Console.WriteLine("======================================");
             Console.WriteLine("Plants");
             plants.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
+            Console.WriteLine("===================");
+            Console.WriteLine("Plants/Round");
+            relativePlants.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
 
             Console.WriteLine();
-            Console.WriteLine("=======================================");
+            Console.WriteLine("======================================");
             Console.WriteLine("Defuses");
             defuses.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
+            Console.WriteLine("===================");
+            Console.WriteLine("Defuses/Round");
+            relativeDefuses.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
 
             Console.WriteLine();
-            Console.WriteLine("=======================================");
+            Console.WriteLine("======================================");
             Console.WriteLine("Movement");
             movement.ForEach(m => Console.WriteLine($"{Enum.GetName(typeof(Players), m.Key)}: {UnitToKm(m.Value)}"));
+            Console.WriteLine("===================");
+            Console.WriteLine("Movement/Round");
+            relativeMovement.ForEach(f => Console.WriteLine($"{Enum.GetName(typeof(Players), f.Item1)}: {f.Item2}"));
 
             Console.ReadKey();
         }

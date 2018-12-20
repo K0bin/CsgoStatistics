@@ -15,7 +15,7 @@ namespace CsgoStatistics
 
         private DemoFile file;
 
-        private int demoId;
+        private Demo demo;
 
         private long? defuserSteamId = null;
         private long? planterSteamId = null;
@@ -30,7 +30,7 @@ namespace CsgoStatistics
             this.file = file;
 
             stats = new Statistics();
-            demoId = file.FileName.GetHashCode();
+            var demoId = file.FileName.GetHashCode();
 
             parser = new DemoParser(file.Stream);
             parser.PlayerKilled += Parser_PlayerKilled;
@@ -49,15 +49,15 @@ namespace CsgoStatistics
             if (parser.Header.ServerName.ToLower().StartsWith("valve", StringComparison.Ordinal))
                 service = DemoService.MatchMaking;
 
-            var demo = new Demo
+            demo = new Demo
             {
                 Id = demoId,
                 DateTime = file.LastModified,
                 Map = parser.Header.MapName,
                 Duration = new TimeSpan(0, 0, (int)(parser.TickTime * parser.Header.PlaybackTicks)),
-                Service = service
+                Service = service,
+                Players = new HashSet<long>()
             };
-            stats.Demos.Add(demo);
         }
 
         private void Parser_TickDone(object sender, TickDoneEventArgs e)
@@ -96,6 +96,15 @@ namespace CsgoStatistics
             if (e.TimeLimit < 999)
             {
                 hasStarted = true;
+                foreach (var player in parser.Participants)
+                {
+                    if (player == null)
+                    {
+                        continue;
+                    }
+                    demo.Players.Add(player.SteamID);
+                }
+                stats.Demos.Add(demo);
             }
         }
 
@@ -114,7 +123,7 @@ namespace CsgoStatistics
             stats.Rounds.Add(new Round
             {
                 RoundNumber = parser.CTScore + parser.TScore,
-                DemoId = demoId,
+                DemoId = demo.Id,
                 DefuserSteamId = defuserSteamId,
                 MvpSteamId = mvpSteamId,
                 PlanterSteamId = planterSteamId
@@ -147,7 +156,7 @@ namespace CsgoStatistics
 
             stats.Kills.Add(new Kill
             {
-                DemoId = demoId,
+                DemoId = demo.Id,
                 Round = parser.CTScore + parser.TScore,
                 AssisterSteamId = e.Assister?.SteamID,
                 KillerSteamId = e.Killer?.SteamID,
